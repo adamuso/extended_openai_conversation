@@ -53,6 +53,7 @@ from .const import (
     DEFAULT_CONF_FUNCTIONS,
     DEFAULT_CONTEXT_THRESHOLD,
     DEFAULT_CONTEXT_TRUNCATE_STRATEGY,
+    DEFAULT_EMPTY_RESPONSE,
     DEFAULT_MAX_FUNCTION_CALLS_PER_CONVERSATION,
     DEFAULT_MAX_TOKENS,
     DEFAULT_PROMPT,
@@ -201,6 +202,14 @@ class ExtendedOpenAIAgentEntity(
                 response=intent_response, conversation_id=conversation_id
             )
 
+        content = query_response.message.content
+        if content is None or not content.strip():
+            # Some models return tool call markup only or an empty message.
+            # Always answer with something instead of leaving the user with an
+            # empty response.
+            content = DEFAULT_EMPTY_RESPONSE
+            query_response.message.content = content
+
         msg = query_response.message.model_dump(exclude_none=True)
         if msg.get("tool_calls") == []:
             msg.pop("tool_calls", None)
@@ -218,31 +227,14 @@ class ExtendedOpenAIAgentEntity(
         )
 
         intent_response = intent.IntentResponse(language=user_input.language)
-        intent_response.async_set_speech(query_response.message.content)
+        intent_response.async_set_speech(content)
 
-        # Detect if LLM is asking a follow-up question to enable continued conversation
-        response_text = query_response.message.content or ""
-        should_continue = response_text.rstrip().endswith("?") or any(
-            phrase in response_text.lower()
-            for phrase in [
-                "which one",
-                "would you like",
-                "do you want",
-                "would you prefer",
-                "which do you",
-                "what would you",
-                "shall i",
-                "should i",
-                "choose from",
-                "select from",
-                "pick from",
-            ]
-        )
-
+        # Always continue the conversation so the client keeps the same
+        # conversation_id, which is what the message history is keyed on.
         return conversation.ConversationResult(
             response=intent_response,
             conversation_id=conversation_id,
-            continue_conversation=should_continue,
+            continue_conversation=True,
         )
 
     def _generate_system_message(

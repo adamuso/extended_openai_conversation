@@ -469,6 +469,11 @@ class ExtendedOpenAIAgentEntity(
                 n_requests,
                 function,
             )
+        _LOGGER.error(
+            "Model requested unknown function '%s' with arguments %s",
+            function_name,
+            message.function_call.arguments,
+        )
         raise FunctionNotFound(function_name)
 
     async def execute_function(
@@ -482,35 +487,56 @@ class ExtendedOpenAIAgentEntity(
     ) -> OpenAIQueryResponse:
         function = functionSpec["function"]
         function_executor = get_function_executor(function["type"])
+        function_name = message.function_call.name
+
+        _LOGGER.info(
+            "Executing function %s with arguments %s",
+            function_name,
+            message.function_call.arguments,
+        )
 
         try:
             arguments = json.loads(message.function_call.arguments)
         except json.decoder.JSONDecodeError as err:
-            raise ParseArgumentsFailed(message.function_call.arguments) from err
-
-        if self.should_run_in_background(arguments):
-            # create a delayed function and execute in background
-            function_executor = get_function_executor("composite")
-            self.entry.async_create_task(
-                self.hass,
-                function_executor.execute(
-                    self.hass,
-                    self.get_delayed_function(function, arguments),
-                    arguments,
-                    user_input,
-                    exposed_entities,
-                ),
+            _LOGGER.exception(
+                "Failed to parse arguments for function %s: %s",
+                function_name,
+                message.function_call.arguments,
             )
-            result = "Scheduled"
+            result = {"error": str(err)}
         else:
-            result = await function_executor.execute(
-                self.hass, function, arguments, user_input, exposed_entities
-            )
+            if self.should_run_in_background(arguments):
+                # create a delayed function and execute in background
+                function_executor = get_function_executor("composite")
+                self.entry.async_create_task(
+                    self.hass,
+                    function_executor.execute(
+                        self.hass,
+                        self.get_delayed_function(function, arguments),
+                        arguments,
+                        user_input,
+                        exposed_entities,
+                    ),
+                )
+                result = "Scheduled"
+            else:
+                try:
+                    result = await function_executor.execute(
+                        self.hass, function, arguments, user_input, exposed_entities
+                    )
+                except Exception as err:  # pylint: disable=broad-except
+                    _LOGGER.exception(
+                        "Function %s failed with arguments %s",
+                        function_name,
+                        message.function_call.arguments,
+                    )
+                    result = {"error": str(err)}
+            _LOGGER.info("Function %s returned %s", function_name, result)
 
         messages.append(
             {
                 "role": "function",
-                "name": message.function_call.name,
+                "name": function_name,
                 "content": str(result),
             }
         )
@@ -549,24 +575,44 @@ class ExtendedOpenAIAgentEntity(
                 (s for s in self.get_functions() if s["spec"]["name"] == function_name),
                 None,
             )
-            if function is not None:
-                result = await self.execute_tool_function(
-                    user_input,
+            if function is None:
+                _LOGGER.error(
+                    "Model requested unknown function '%s' with arguments %s",
+                    function_name,
                     tool_arguments,
-                    exposed_entities,
-                    function,
                 )
-
-                messages.append(
-                    {
-                        "tool_call_id": tool_id,
-                        "role": "tool",
-                        "name": function_name,
-                        "content": str(result),
-                    }
-                )
+                result: Any = {"error": f"function '{function_name}' does not exist"}
             else:
-                raise FunctionNotFound(function_name)
+                _LOGGER.info(
+                    "Executing function %s with arguments %s",
+                    function_name,
+                    tool_arguments,
+                )
+                try:
+                    result = await self.execute_tool_function(
+                        user_input,
+                        tool_arguments,
+                        exposed_entities,
+                        function,
+                    )
+                except Exception as err:  # pylint: disable=broad-except
+                    _LOGGER.exception(
+                        "Function %s failed with arguments %s",
+                        function_name,
+                        tool_arguments,
+                    )
+                    result = {"error": str(err)}
+                else:
+                    _LOGGER.info("Function %s returned %s", function_name, result)
+
+            messages.append(
+                {
+                    "tool_call_id": tool_id,
+                    "role": "tool",
+                    "name": function_name,
+                    "content": str(result),
+                }
+            )
         return await self.query(user_input, messages, exposed_entities, n_requests)
 
     async def execute_tool_function(

@@ -397,7 +397,8 @@ class NativeFunctionExecutor(FunctionExecutor):
 
         if isinstance(entity_id, str):
             entity_id = [e.strip() for e in entity_id.split(",")]
-        service_data["entity_id"] = entity_id
+        if entity_id is not None:
+            service_data["entity_id"] = entity_id
 
         if entity_id is None and area_id is None and device_id is None:
             raise CallServiceError(domain, service, service_data)
@@ -410,10 +411,19 @@ class NativeFunctionExecutor(FunctionExecutor):
                 domain=domain,
                 service=service,
                 service_data=service_data,
+                blocking=True,
+                context=user_input.context,
             )
             return {"success": True}
         except HomeAssistantError as e:
-            _LOGGER.error(e)
+            _LOGGER.error(
+                "Failed to call service %s.%s with data %s: %s",
+                domain,
+                service,
+                service_data,
+                e,
+                exc_info=True,
+            )
             return {"error": str(e)}
 
     async def execute_service(
@@ -466,7 +476,9 @@ class NativeFunctionExecutor(FunctionExecutor):
             raw_config = yaml.dump(automations, allow_unicode=True, sort_keys=False)
             f.write("\n" + raw_config)
 
-        await hass.services.async_call(automation.config.DOMAIN, SERVICE_RELOAD)
+        await hass.services.async_call(
+            automation.config.DOMAIN, SERVICE_RELOAD, blocking=True
+        )
         hass.bus.async_fire(
             EVENT_AUTOMATION_REGISTERED,
             {"automation_config": config, "raw_config": raw_config},

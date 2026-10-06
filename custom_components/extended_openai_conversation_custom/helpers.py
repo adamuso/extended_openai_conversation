@@ -6,6 +6,7 @@ from functools import partial
 import logging
 import os
 import re
+import secrets
 import sqlite3
 import time
 from typing import Any
@@ -53,6 +54,7 @@ from .const import (
     CONF_PAYLOAD_TEMPLATE,
     DOMAIN,
     EVENT_AUTOMATION_REGISTERED,
+    SESSION_ID_PLACEHOLDER,
 )
 from .exceptions import (
     CallServiceError,
@@ -83,10 +85,19 @@ def is_azure_url(base_url: str | None) -> bool:
     return False
 
 
-def build_custom_headers(custom_headers: Any) -> dict[str, str] | None:
+def generate_session_id() -> str:
+    """Generate a session id in the form ses_<32 hex characters>."""
+    return f"ses_{secrets.token_hex(16)}"
+
+
+def build_custom_headers(
+    custom_headers: Any, session_id: str | None = None
+) -> dict[str, str] | None:
     """Build a mapping of custom HTTP headers.
 
     Accepts either a mapping or a YAML/JSON string representing a mapping.
+    If session_id is provided, the SESSION_ID_PLACEHOLDER in header values is
+    replaced with it; otherwise headers containing the placeholder are dropped.
     """
     if not custom_headers:
         return None
@@ -102,7 +113,16 @@ def build_custom_headers(custom_headers: Any) -> dict[str, str] | None:
             "Custom headers must be a mapping of header names to values."
         )
 
-    return {str(key): str(value) for key, value in custom_headers.items()}
+    headers: dict[str, str] = {}
+    for key, value in custom_headers.items():
+        value = str(value)
+        if SESSION_ID_PLACEHOLDER in value:
+            if session_id is None:
+                continue
+            value = value.replace(SESSION_ID_PLACEHOLDER, session_id)
+        headers[str(key)] = value
+
+    return headers or None
 
 
 def convert_to_template(

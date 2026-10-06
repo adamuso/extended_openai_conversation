@@ -40,6 +40,7 @@ from .const import (
     CONF_CHAT_MODEL,
     CONF_CONTEXT_THRESHOLD,
     CONF_CONTEXT_TRUNCATE_STRATEGY,
+    CONF_CUSTOM_HEADERS,
     CONF_FUNCTIONS,
     CONF_MAX_FUNCTION_CALLS_PER_CONVERSATION,
     CONF_MAX_TOKENS,
@@ -68,7 +69,7 @@ from .exceptions import (
     ParseArgumentsFailed,
     TokenLengthExceededError,
 )
-from .helpers import get_function_executor
+from .helpers import build_custom_headers, generate_session_id, get_function_executor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -109,6 +110,7 @@ class ExtendedOpenAIAgentEntity(
         self.entry = entry
         self.subentry = subentry
         self.history: dict[str, list[dict]] = {}
+        self._session_ids: dict[str, str] = {}
 
         self.options = subentry.data
         self._attr_unique_id = subentry.subentry_id
@@ -287,6 +289,18 @@ class ExtendedOpenAIAgentEntity(
             )
         return exposed_entities
 
+    def _get_session_id(self, conversation_id: str | None) -> str:
+        """Return the session id for a conversation, creating one if needed.
+
+        A new session id is generated for every new conversation and reused
+        while the same conversation is continued.
+        """
+        if conversation_id is None:
+            return generate_session_id()
+        if conversation_id not in self._session_ids:
+            self._session_ids[conversation_id] = generate_session_id()
+        return self._session_ids[conversation_id]
+
     def get_functions(self):
         try:
             function = self.options.get(CONF_FUNCTIONS)
@@ -372,12 +386,18 @@ class ExtendedOpenAIAgentEntity(
         )
         token_kwargs = {"max_completion_tokens": max_tokens} if use_new_token_param else {"max_tokens": max_tokens}
 
+        custom_headers = build_custom_headers(
+            self.entry.data.get(CONF_CUSTOM_HEADERS),
+            self._get_session_id(user_input.conversation_id),
+        )
+
         response = await self.client.chat.completions.create(
             model=model,
             messages=messages,
             top_p=top_p,
             temperature=temperature,
             user=user_input.conversation_id,
+            extra_headers=custom_headers,
             **token_kwargs,
             **tool_kwargs,
         )

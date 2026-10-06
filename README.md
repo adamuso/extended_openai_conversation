@@ -88,8 +88,10 @@ Additional HTTP headers can be sent with every API request. They can be set in t
 ```yaml
 custom_headers:
   X-Custom-Header: value
-  X-Another-Header: another value
+  x-session: $SESSION_ID
 ```
+
+The `$SESSION_ID` placeholder is replaced with a session id in the form `ses_<32 hex characters>` (for example `ses_1234567890abcdef1234567890abcdef`). A new session id is generated for every new conversation and stays the same while that conversation is continued.
 
 Note that the OpenAI SDK always adds its own `Authorization` and `Content-Type` headers; custom headers are merged on top of them.
 

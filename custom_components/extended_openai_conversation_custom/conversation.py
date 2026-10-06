@@ -69,7 +69,12 @@ from .exceptions import (
     ParseArgumentsFailed,
     TokenLengthExceededError,
 )
-from .helpers import build_custom_headers, generate_session_id, get_function_executor
+from .helpers import (
+    build_custom_headers,
+    extract_dsml_tool_calls,
+    generate_session_id,
+    get_function_executor,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -410,6 +415,14 @@ class ExtendedOpenAIAgentEntity(
         choice: Choice = response.choices[0]
         message = choice.message
 
+        # Some OpenAI compatible servers leave native tool call markup in the
+        # content. Strip it so it is never spoken or fed back to the model, and
+        # parse it only when the server did not already provide structured calls.
+        structured_tool_calls = list(message.tool_calls or [])
+        dsml_tool_calls, cleaned_content = extract_dsml_tool_calls(message.content)
+        if cleaned_content != (message.content or ""):
+            message.content = cleaned_content or None
+
         if choice.finish_reason == "function_call" or (
             choice.finish_reason == "stop" and choice.message.function_call is not None
         ):
@@ -418,11 +431,24 @@ class ExtendedOpenAIAgentEntity(
             )
         # Some OpenAI servers returns tool_calls=[] on normal "stop" completions.
         # Only enter tool execution when tool_calls is present AND non-empty.
-        if message.tool_calls and (
+        if structured_tool_calls and (
             choice.finish_reason == "tool_calls" or choice.finish_reason == "stop"
         ):
             return await self.execute_tool_calls(
                 user_input, messages, message, exposed_entities, n_requests + 1
+            )
+        # Execute DSML markup from the content only when the server did not
+        # return structured tool calls and the model was still allowed to call
+        # functions. This avoids running a call twice when the model repeats an
+        # already executed call as text after tool_choice="none".
+        if dsml_tool_calls and functions and function_call != "none":
+            return await self.execute_tool_calls(
+                user_input,
+                messages,
+                message,
+                exposed_entities,
+                n_requests + 1,
+                tool_calls=dsml_tool_calls,
             )
         if choice.finish_reason == "length":
             raise TokenLengthExceededError(response.usage.completion_tokens)
@@ -505,10 +531,28 @@ class ExtendedOpenAIAgentEntity(
         message: ChatCompletionMessage,
         exposed_entities,
         n_requests,
+        tool_calls=None,
     ) -> OpenAIQueryResponse:
-        messages.append(message.model_dump(exclude_none=True))
-        for tool in message.tool_calls:
-            function_name = tool.function.name
+        if tool_calls is None:
+            tool_calls = message.tool_calls
+            messages.append(message.model_dump(exclude_none=True))
+        else:
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": message.content,
+                    "tool_calls": tool_calls,
+                }
+            )
+        for tool in tool_calls:
+            if isinstance(tool, dict):
+                function_name = tool["function"]["name"]
+                tool_arguments = tool["function"].get("arguments") or "{}"
+                tool_id = tool["id"]
+            else:
+                function_name = tool.function.name
+                tool_arguments = tool.function.arguments
+                tool_id = tool.id
             function = next(
                 (s for s in self.get_functions() if s["spec"]["name"] == function_name),
                 None,
@@ -516,14 +560,14 @@ class ExtendedOpenAIAgentEntity(
             if function is not None:
                 result = await self.execute_tool_function(
                     user_input,
-                    tool,
+                    tool_arguments,
                     exposed_entities,
                     function,
                 )
 
                 messages.append(
                     {
-                        "tool_call_id": tool.id,
+                        "tool_call_id": tool_id,
                         "role": "tool",
                         "name": function_name,
                         "content": str(result),
@@ -536,7 +580,7 @@ class ExtendedOpenAIAgentEntity(
     async def execute_tool_function(
         self,
         user_input: conversation.ConversationInput,
-        tool,
+        tool_arguments: str,
         exposed_entities,
         functionSpec,
     ) -> Any:
@@ -544,9 +588,9 @@ class ExtendedOpenAIAgentEntity(
         function_executor = get_function_executor(function["type"])
 
         try:
-            arguments = json.loads(tool.function.arguments)
+            arguments = json.loads(tool_arguments)
         except json.decoder.JSONDecodeError as err:
-            raise ParseArgumentsFailed(tool.function.arguments) from err
+            raise ParseArgumentsFailed(tool_arguments) from err
 
         if self.should_run_in_background(arguments):
             # create a delayed function and execute in background

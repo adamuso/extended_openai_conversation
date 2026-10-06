@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from datetime import timedelta
 from functools import partial
+import json
 import logging
 import os
 import re
@@ -123,6 +124,80 @@ def build_custom_headers(
         headers[str(key)] = value
 
     return headers or None
+
+
+DSML_SIGNAL_RE = re.compile(
+    r"<[^>]*DSML[^>]*>|<[^>]*?invoke\s+name\s*=\s*\"", re.IGNORECASE
+)
+_DSML_INVOKE_RE = re.compile(
+    r"<[^>]*?invoke\s+name\s*=\s*\"(?P<name>[^\"]+)\"[^>]*>(?P<body>.*?)"
+    r"</[^>]*?invoke\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+_DSML_PARAM_RE = re.compile(
+    r"<[^>]*?parameter\s+name\s*=\s*\"(?P<name>[^\"]+)\"(?P<attrs>[^>]*)>"
+    r"(?P<value>.*?)</[^>]*?parameter\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+_DSML_TAG_RE = re.compile(r"</?[^>]*DSML[^>]*>", re.IGNORECASE)
+_DSML_WRAPPER_RE = re.compile(
+    r"</?[^>]*?(?:tool[_▁\s]*calls|function[_▁\s]*calls)[^>]*>", re.IGNORECASE
+)
+
+
+def _coerce_dsml_value(value: str, attrs: str) -> Any:
+    """Coerce a DSML parameter value based on its string attribute."""
+    value = value.strip()
+    if re.search(r'string\s*=\s*"true"', attrs, re.IGNORECASE):
+        return value
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
+
+
+def extract_dsml_tool_calls(text: str | None) -> tuple[list[dict[str, Any]], str]:
+    """Extract DeepSeek DSML tool calls from assistant content.
+
+    Some OpenAI compatible servers return tool calls as DeepSeek's native DSML
+    markup in the message content instead of in the structured tool_calls
+    field. Returns the calls in OpenAI wire format together with the content
+    with the markup removed. When no well-formed call is found, the call list
+    is empty and only stray markup is stripped from the content.
+    """
+    if not text or not DSML_SIGNAL_RE.search(text):
+        return [], text or ""
+
+    tool_calls: list[dict[str, Any]] = []
+    spans: list[tuple[int, int]] = []
+    for index, match in enumerate(_DSML_INVOKE_RE.finditer(text)):
+        name = match.group("name").strip()
+        if not name:
+            continue
+        arguments = {
+            param.group("name").strip(): _coerce_dsml_value(
+                param.group("value"), param.group("attrs")
+            )
+            for param in _DSML_PARAM_RE.finditer(match.group("body"))
+        }
+        tool_calls.append(
+            {
+                "id": f"call_dsml_{index}",
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "arguments": json.dumps(arguments, ensure_ascii=False),
+                },
+            }
+        )
+        spans.append((match.start(), match.end()))
+
+    cleaned = text
+    for start, end in reversed(spans):
+        cleaned = cleaned[:start] + cleaned[end:]
+    cleaned = _DSML_WRAPPER_RE.sub("", cleaned)
+    cleaned = _DSML_TAG_RE.sub("", cleaned).strip()
+    return tool_calls, cleaned
 
 
 def convert_to_template(

@@ -82,6 +82,8 @@ The following API providers can be selected when adding the integration:
 
 For `OpenAI Compatible` servers the authentication check is skipped automatically, since many only implement the chat completions endpoint and do not expose `GET /models`. For the other providers, enable `Skip Authentication` if the `/models` endpoint is unavailable.
 
+Some `OpenAI Compatible` servers return DeepSeek's native DSML tool-call markup in the message content instead of structured `tool_calls`. The integration parses and executes those calls and strips the markup from the reply. If the server already returns structured `tool_calls`, the content markup is ignored to avoid executing the same call twice, and once the model is no longer allowed to call functions (`tool_choice="none"`) any repeated markup is only stripped, never executed.
+
 #### Custom HTTP Headers
 Additional HTTP headers can be sent with every API request. They can be set in the initial configuration form or updated later with the `extended_openai_conversation_custom.change_config` service. Headers are provided as a mapping of header name to value, for example:
 

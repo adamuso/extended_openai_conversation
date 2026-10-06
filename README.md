@@ -80,7 +80,7 @@ The following API providers can be selected when adding the integration:
 - `Azure OpenAI`: requires a custom base URL and API version.
 - `OpenAI Compatible`: any server exposing an OpenAI-compatible API (for example LocalAI, Ollama, LM Studio or vLLM). Requires a custom base URL.
 
-For `OpenAI Compatible` servers that do not implement the `/models` endpoint, enable `Skip Authentication`.
+For `OpenAI Compatible` servers the authentication check is skipped automatically, since many only implement the chat completions endpoint and do not expose `GET /models`. For the other providers, enable `Skip Authentication` if the `/models` endpoint is unavailable.
 
 #### Custom HTTP Headers
 Additional HTTP headers can be sent with every API request. They can be set in the initial configuration form or updated later with the `extended_openai_conversation_custom.change_config` service. Headers are provided as a mapping of header name to value, for example:

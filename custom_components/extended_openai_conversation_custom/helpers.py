@@ -49,6 +49,7 @@ import homeassistant.util.dt as dt_util
 
 from .const import (
     API_PROVIDER_AZURE,
+    API_PROVIDER_OPENAI_COMPATIBLE,
     CONF_PAYLOAD_TEMPLATE,
     DOMAIN,
     EVENT_AUTOMATION_REGISTERED,
@@ -188,7 +189,9 @@ async def get_authenticated_client(
             default_headers=default_headers,
         )
 
-    if skip_authentication:
+    if skip_authentication or api_provider == API_PROVIDER_OPENAI_COMPATIBLE:
+        # Many OpenAI compatible servers only implement POST /chat/completions
+        # and do not expose GET /models, so the authentication check is skipped.
         return client
 
     response = await hass.async_add_executor_job(

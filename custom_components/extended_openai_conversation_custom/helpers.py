@@ -25,6 +25,7 @@ from homeassistant.components import (
     recorder,
     rest,
     scrape,
+    script,
 )
 from homeassistant.components.automation.config import _async_validate_config_item
 from homeassistant.components.script.config import SCRIPT_ENTITY_SCHEMA
@@ -44,8 +45,10 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import HomeAssistantError, ServiceNotFound
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.script import Script
+from homeassistant.helpers.service import async_get_cached_service_description
 from homeassistant.helpers.template import Template
 import homeassistant.util.dt as dt_util
 
@@ -198,6 +201,40 @@ def extract_dsml_tool_calls(text: str | None) -> tuple[list[dict[str, Any]], str
     cleaned = _DSML_WRAPPER_RE.sub("", cleaned)
     cleaned = _DSML_TAG_RE.sub("", cleaned).strip()
     return tool_calls, cleaned
+
+
+def get_script_info(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
+    """Return the description and fields of a script entity.
+
+    Script entities register an entity service whose description contains the
+    configured name, description and fields of the script.
+    """
+    if not entity_id.startswith(f"{script.DOMAIN}."):
+        raise HomeAssistantError(f"{entity_id} is not a script entity")
+
+    state = hass.states.get(entity_id)
+    if state is None:
+        raise EntityNotFound(entity_id)
+
+    registry_entry = er.async_get(hass).async_get(entity_id)
+    unique_id = (
+        registry_entry.unique_id
+        if registry_entry and registry_entry.unique_id
+        else entity_id.split(".", 1)[1]
+    )
+    service_description = (
+        async_get_cached_service_description(hass, script.DOMAIN, unique_id) or {}
+    )
+
+    return {
+        "entity_id": entity_id,
+        "name": service_description.get("name") or state.name,
+        "description": service_description.get("description") or "",
+        "fields": service_description.get("fields") or {},
+        "mode": state.attributes.get("mode"),
+        "last_triggered": state.attributes.get("last_triggered"),
+        "state": state.state,
+    }
 
 
 def convert_to_template(
@@ -359,6 +396,10 @@ class NativeFunctionExecutor(FunctionExecutor):
             return await self.add_automation(
                 hass, function, arguments, user_input, exposed_entities
             )
+        if name == "get_script":
+            entity_id = arguments["entity_id"]
+            self.validate_entity_ids(hass, [entity_id], exposed_entities)
+            return get_script_info(hass, entity_id)
         if name == "get_history":
             return await self.get_history(
                 hass, function, arguments, user_input, exposed_entities

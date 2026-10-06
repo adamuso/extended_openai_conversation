@@ -65,3 +65,10 @@ change_config:
             - azure
             - openai_compatible
           mode: dropdown
+get_script:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          domain: script

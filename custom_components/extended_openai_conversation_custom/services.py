@@ -33,9 +33,10 @@ from .const import (
     CONF_SKIP_AUTHENTICATION,
     DEFAULT_CONF_BASE_URL,
     DOMAIN,
+    SERVICE_GET_SCRIPT,
     SERVICE_QUERY_IMAGE,
 )
-from .helpers import get_authenticated_client
+from .helpers import get_authenticated_client, get_script_info
 
 QUERY_IMAGE_SCHEMA = vol.Schema(
     {
@@ -65,6 +66,14 @@ CHANGE_CONFIG_SCHEMA = vol.Schema(
         vol.Optional(CONF_CUSTOM_HEADERS): vol.Any(cv.string, dict),
         vol.Optional(CONF_SKIP_AUTHENTICATION): cv.boolean,
         vol.Optional(CONF_API_PROVIDER): cv.string,
+    }
+)
+
+GET_SCRIPT_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_id"): selector.EntitySelector(
+            selector.EntitySelectorConfig(domain="script")
+        ),
     }
 )
 
@@ -177,6 +186,10 @@ async def async_setup_services(hass: HomeAssistant, config: ConfigType) -> None:
 
         hass.config_entries.async_update_entry(entry, data=new_data)
 
+    async def get_script(call: ServiceCall) -> ServiceResponse:
+        """Get the description and fields of a script entity."""
+        return get_script_info(hass, call.data["entity_id"])
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_QUERY_IMAGE,
@@ -190,6 +203,14 @@ async def async_setup_services(hass: HomeAssistant, config: ConfigType) -> None:
         "change_config",
         change_config,
         schema=CHANGE_CONFIG_SCHEMA,
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_SCRIPT,
+        get_script,
+        schema=GET_SCRIPT_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
     )
 
 

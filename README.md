@@ -118,11 +118,34 @@ Note that the OpenAI SDK always adds its own `Authorization` and `Content-Type` 
       - `minimal_response`(boolean): only return last_changed and state for states other than the first and last state (defaults to true)
       - `no_attributes`(boolean): skip returning attributes from the database (defaults to true)
       - `significant_changes_only`(boolean): only return significant state changes (defaults to true)
+    - `get_script`
+      - `entity_id`(string): the script entity id to get the description and fields for
 - `script`: A list of services that will be called
 - `template`: The value to be returned from function.
 - `rest`: Getting data from REST API endpoint.
 - `scrape`: Scraping information from website
 - `composite`: A sequence of functions to execute. 
+
+#### get_script
+
+The `extended_openai_conversation_custom.get_script` action returns the name, description, fields, mode and last triggered time of a script entity. The same data can be exposed to the model as a native function so it can inspect a script before running it:
+
+```yaml
+- spec:
+    name: get_script
+    description: Get the description and fields of a script entity before running it.
+    parameters:
+      type: object
+      properties:
+        entity_id:
+          type: string
+          description: The script entity id
+      required:
+        - entity_id
+  function:
+    type: native
+    name: get_script
+```
 
 Below is a default configuration of functions.
 

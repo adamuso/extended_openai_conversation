@@ -112,6 +112,16 @@
           "description": "Additional HTTP headers sent with every request, as a mapping of header names to values. Use $SESSION_ID as a placeholder for a random session id that is generated for each new conversation."
         }
       }
+    },
+    "get_script": {
+      "name": "Get script",
+      "description": "Get the description and fields of a script entity.",
+      "fields": {
+        "entity_id": {
+          "name": "Script",
+          "description": "The script entity to get details for."
+        }
+      }
     }
   }
 }

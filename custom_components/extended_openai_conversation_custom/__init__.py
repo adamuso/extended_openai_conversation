@@ -21,6 +21,7 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     CONF_API_VERSION,
     CONF_BASE_URL,
+    CONF_CUSTOM_HEADERS,
     CONF_ORGANIZATION,
     CONF_SKIP_AUTHENTICATION,
     DEFAULT_SKIP_AUTHENTICATION,
@@ -62,6 +63,7 @@ async def async_setup_entry(
                 CONF_SKIP_AUTHENTICATION, DEFAULT_SKIP_AUTHENTICATION
             ),
             api_provider=entry.data.get(CONF_API_PROVIDER, DEFAULT_API_PROVIDER),
+            custom_headers=entry.data.get(CONF_CUSTOM_HEADERS),
         )
     except AuthenticationError as err:
         _LOGGER.error("Invalid API key: %s", err)

@@ -1,20 +1,24 @@
 {
     "config": {
         "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
+            "cannot_connect": "Nie udało się połączyć",
+            "invalid_auth": "Błąd authentykacji",
+            "unknown": "Nieznany błąd"
         },
         "step": {
             "user": {
                 "data": {
-                    "name": "Name",
-                    "api_key": "API Key",
-                    "base_url": "Base Url",
-                    "api_version": "Api Version",
-                    "organization": "Organization",
-                    "skip_authentication": "Skip Authentication",
-                    "api_provider": "Api Provider"
+                    "name": "Imię",
+                    "api_key": "Klucz API",
+                    "base_url": "Bazowy URL",
+                    "api_version": "Wersja API",
+                    "organization": "Organizacja",
+                    "skip_authentication": "Pomiń authentykację",
+                    "api_provider": "Api Provider",
+                    "custom_headers": "Custom HTTP Headers"
+                },
+                "data_description": {
+                    "custom_headers": "Additional HTTP headers sent with every request, as a mapping of header names to values."
                 }
             }
         }
@@ -29,20 +33,20 @@
             "step": {
                 "init": {
                     "data": {
-                        "max_tokens": "Maximum tokens to return in response",
-                        "model": "Completion Model",
-                        "prompt": "Prompt Template",
-                        "temperature": "Temperature",
+                        "max_tokens": "Maksymalna liczba tokenów w odpowiedzi",
+                        "model": "Model",
+                        "prompt": "Prompt",
+                        "temperature": "Temperatura",
                         "top_p": "Top P",
-                        "max_function_calls_per_conversation": "Maximum function calls per conversation",
-                        "functions": "Functions",
-                        "attach_username": "Attach Username to Message",
-                        "use_tools": "Use Tools",
-                        "context_threshold": "Context Threshold",
-                        "context_truncate_strategy": "Context truncation strategy when exceeded threshold"
+                        "max_function_calls_per_conversation": "Maksymalna liczba wywołań funkcji na rozmowę",
+                        "functions": "Funkcje",
+                        "attach_username": "Dodaj nazwę użytkownika do wiadomości",
+                        "use_tools": "Używaj narzędzi",
+                        "context_threshold": "Limit kontekstu",
+                        "context_truncate_strategy": "Co zrobić z kontekstem, gdy przekroczony limit"
                     },
                     "data_description": {
-                        "use_tools": "Whether to use tool calling or function calling in the conversation. If disabled, function calling will be used."
+                        "use_tools": "Whether to use tool calling or function calling in the conversation. If disabled, function calling will be used (see https://platform.openai.com/docs/guides/function-calling)"
                     }
                 }
             }
@@ -87,28 +91,32 @@
                     "description": "The config entry to update."
                 },
                 "api_key": {
-                    "name": "API Key",
+                    "name": "Klucz API",
                     "description": "The API key."
                 },
                 "base_url": {
-                    "name": "Base Url",
+                    "name": "Bazowy URL",
                     "description": "The base URL."
                 },
                 "api_version": {
-                    "name": "Api Version",
+                    "name": "Wersja API",
                     "description": "The API version."
                 },
                 "organization": {
-                    "name": "Organization",
+                    "name": "Organizacja",
                     "description": "The organization."
                 },
                 "skip_authentication": {
-                    "name": "Skip Authentication",
+                    "name": "Pomiń authentykację",
                     "description": "Skip authentication."
                 },
                 "api_provider": {
                     "name": "Api Provider",
-                    "description": "The API provider. (OpenAI or Azure)"
+                    "description": "The API provider. (OpenAI, Azure or OpenAI Compatible)"
+                },
+                "custom_headers": {
+                    "name": "Custom HTTP Headers",
+                    "description": "Additional HTTP headers sent with every request, as a mapping of header names to values."
                 }
             }
         }

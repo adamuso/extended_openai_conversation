@@ -1,8 +1,8 @@
 """Constants for the Extended OpenAI Conversation integration."""
 
-DOMAIN = "extended_openai_conversation"
-DEFAULT_NAME = "Extended OpenAI Conversation"
-DEFAULT_CONVERSATION_NAME = "Extended OpenAI Conversation"
+DOMAIN = "extended_openai_conversation_custom"
+DEFAULT_NAME = "Extended OpenAI Conversation Custom"
+DEFAULT_CONVERSATION_NAME = "Extended OpenAI Conversation Custom"
 
 CONF_ORGANIZATION = "organization"
 CONF_BASE_URL = "base_url"
@@ -11,14 +11,25 @@ CONF_API_VERSION = "api_version"
 CONF_SKIP_AUTHENTICATION = "skip_authentication"
 DEFAULT_SKIP_AUTHENTICATION = False
 CONF_API_PROVIDER = "api_provider"
+API_PROVIDER_OPENAI = "openai"
+API_PROVIDER_AZURE = "azure"
+API_PROVIDER_OPENAI_COMPATIBLE = "openai_compatible"
 API_PROVIDERS = [
-    {"key": "openai", "label": "OpenAI"},
-    {"key": "azure", "label": "Azure OpenAI"},
+    {"key": API_PROVIDER_OPENAI, "label": "OpenAI"},
+    {"key": API_PROVIDER_AZURE, "label": "Azure OpenAI"},
+    {"key": API_PROVIDER_OPENAI_COMPATIBLE, "label": "OpenAI Compatible"},
 ]
 DEFAULT_API_PROVIDER = API_PROVIDERS[0]["key"]
+API_PROVIDERS_REQUIRING_BASE_URL = [API_PROVIDER_AZURE, API_PROVIDER_OPENAI_COMPATIBLE]
 
-EVENT_AUTOMATION_REGISTERED = "automation_registered_via_extended_openai_conversation"
-EVENT_CONVERSATION_FINISHED = "extended_openai_conversation.conversation.finished"
+CONF_CUSTOM_HEADERS = "custom_headers"
+
+EVENT_AUTOMATION_REGISTERED = (
+    "automation_registered_via_extended_openai_conversation_custom"
+)
+EVENT_CONVERSATION_FINISHED = (
+    "extended_openai_conversation_custom.conversation.finished"
+)
 
 CONF_PROMPT = "prompt"
 DEFAULT_PROMPT = """I want you to act as smart home manager of Home Assistant.

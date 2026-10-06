@@ -1,5 +1,7 @@
-# Extended OpenAI Conversation
+# Extended OpenAI Conversation Custom
 This is custom component of Home Assistant.
+
+> This is a fork of [jekalmin/extended_openai_conversation](https://github.com/jekalmin/extended_openai_conversation) published under the domain `extended_openai_conversation_custom` so it can be installed alongside the original integration. It adds an "OpenAI Compatible" API provider with support for custom HTTP headers.
 
 Derived from [OpenAI Conversation](https://www.home-assistant.io/integrations/openai_conversation/) with some new features such as call-service.
 
@@ -16,16 +18,16 @@ Extended OpenAI Conversation uses OpenAI API's feature of [function calling](htt
 Since OpenAI models already know how to call service of Home Assistant in general, you just have to let model know what devices you have by [exposing entities](https://github.com/jekalmin/extended_openai_conversation#preparation)
 
 ## Installation
-1. Install via registering as a custom repository of HACS or by copying `extended_openai_conversation` folder into `<config directory>/custom_components`
+1. Install via registering as a custom repository of HACS or by copying `extended_openai_conversation_custom` folder into `<config directory>/custom_components`
 2. Restart Home Assistant
 3. Go to Settings > Devices & Services.
 4. In the bottom right corner, select the Add Integration button.
 5. Follow the instructions on screen to complete the setup (API Key is required).
     - [Generating an API Key](https://www.home-assistant.io/integrations/openai_conversation/#generate-an-api-key)
-    - Specify "Base Url" if using OpenAI compatible servers like Azure OpenAI (also with APIM), LocalAI, otherwise leave as it is.
+    - Specify "Base Url" if using OpenAI compatible servers like OpenAI Compatible, Azure OpenAI (also with APIM), LocalAI, otherwise leave as it is.
 6. Go to Settings > [Voice Assistants](https://my.home-assistant.io/redirect/voice_assistants/).
 7. Click to edit Assistant (named "Home Assistant" by default).
-8. Select "Extended OpenAI Conversation" from "Conversation agent" tab.
+8. Select "Extended OpenAI Conversation Custom" from "Conversation agent" tab.
     <details>
 
     <summary>guide image</summary>
@@ -71,10 +73,30 @@ Options include [OpenAI Conversation](https://www.home-assistant.io/integrations
 | <img width="608" alt="1" src="https://github.com/jekalmin/extended_openai_conversation/assets/2917984/bb394cd4-5790-4ac9-9311-dbcab0fcca56"> | <img width="591" alt="스크린샷 2023-10-10 오후 10 53 57" src="https://github.com/jekalmin/extended_openai_conversation/assets/2917984/431e4bc5-87a0-4d7b-8da0-6273f955877f"> |
 
 
+### API Providers
+The following API providers can be selected when adding the integration:
+
+- `OpenAI`: the official OpenAI API (default).
+- `Azure OpenAI`: requires a custom base URL and API version.
+- `OpenAI Compatible`: any server exposing an OpenAI-compatible API (for example LocalAI, Ollama, LM Studio or vLLM). Requires a custom base URL.
+
+For `OpenAI Compatible` servers that do not implement the `/models` endpoint, enable `Skip Authentication`.
+
+#### Custom HTTP Headers
+Additional HTTP headers can be sent with every API request. They can be set in the initial configuration form or updated later with the `extended_openai_conversation_custom.change_config` service. Headers are provided as a mapping of header name to value, for example:
+
+```yaml
+custom_headers:
+  X-Custom-Header: value
+  X-Another-Header: another value
+```
+
+Note that the OpenAI SDK always adds its own `Authorization` and `Content-Type` headers; custom headers are merged on top of them.
+
 ### Functions
 
 #### Supported function types
-- `native`: built-in function provided by "extended_openai_conversation".
+- `native`: built-in function provided by "extended_openai_conversation_custom".
   - Currently supported native functions and parameters are:
     - `execute_service`
       - `domain`(string): domain to be passed to `hass.services.async_call`
@@ -348,7 +370,7 @@ In order to pass result of calling service to OpenAI, set response variable to `
 
 #### 3-1. Add automation
 
-Before adding automation, I highly recommend set notification on `automation_registered_via_extended_openai_conversation` event and create separate "Extended OpenAI Assistant" and "Assistant"
+Before adding automation, I highly recommend set notification on `automation_registered_via_extended_openai_conversation_custom` event and create separate "Extended OpenAI Assistant" and "Assistant"
 
 (Automation can be added even if conversation fails because of failure to get response message, not automation)
 
@@ -641,5 +663,5 @@ In order to monitor logs of API requests and responses, add following config to 
 ```yaml
 logger:
   logs:
-    custom_components.extended_openai_conversation: info
+    custom_components.extended_openai_conversation_custom: info
 ```

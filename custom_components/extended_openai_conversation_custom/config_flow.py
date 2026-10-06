@@ -25,6 +25,7 @@ from homeassistant.helpers.selector import (
     BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
+    ObjectSelector,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -34,6 +35,7 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     API_PROVIDERS,
+    API_PROVIDERS_REQUIRING_BASE_URL,
     CONF_API_PROVIDER,
     CONF_API_VERSION,
     CONF_ATTACH_USERNAME,
@@ -41,6 +43,7 @@ from .const import (
     CONF_CHAT_MODEL,
     CONF_CONTEXT_THRESHOLD,
     CONF_CONTEXT_TRUNCATE_STRATEGY,
+    CONF_CUSTOM_HEADERS,
     CONF_FUNCTIONS,
     CONF_MAX_FUNCTION_CALLS_PER_CONVERSATION,
     CONF_MAX_TOKENS,
@@ -80,6 +83,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_BASE_URL, default=DEFAULT_CONF_BASE_URL): str,
         vol.Optional(CONF_API_VERSION): str,
         vol.Optional(CONF_ORGANIZATION): str,
+        vol.Optional(CONF_CUSTOM_HEADERS): ObjectSelector(),
         vol.Optional(
             CONF_SKIP_AUTHENTICATION, default=DEFAULT_SKIP_AUTHENTICATION
         ): bool,
@@ -127,14 +131,17 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     organization = data.get(CONF_ORGANIZATION)
     skip_authentication = data.get(CONF_SKIP_AUTHENTICATION, False)
     api_provider = data.get(CONF_API_PROVIDER)
+    custom_headers = data.get(CONF_CUSTOM_HEADERS)
 
     if base_url == DEFAULT_CONF_BASE_URL:
         # Do not set base_url if using OpenAI for case of OpenAI's base_url change
         base_url = None
         data.pop(CONF_BASE_URL)
 
-    if api_provider == "azure" and not base_url:
-        raise HomeAssistantError("Azure OpenAI requires a custom base URL.")
+    if api_provider in API_PROVIDERS_REQUIRING_BASE_URL and not base_url:
+        raise HomeAssistantError(
+            f"{api_provider} requires a custom base URL."
+        )
 
     await get_authenticated_client(
         hass=hass,
@@ -143,6 +150,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
         api_version=api_version,
         organization=organization,
         api_provider=api_provider,
+        custom_headers=custom_headers,
         skip_authentication=skip_authentication,
     )
 

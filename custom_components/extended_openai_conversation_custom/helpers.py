@@ -47,7 +47,12 @@ from homeassistant.helpers.script import Script
 from homeassistant.helpers.template import Template
 import homeassistant.util.dt as dt_util
 
-from .const import CONF_PAYLOAD_TEMPLATE, DOMAIN, EVENT_AUTOMATION_REGISTERED
+from .const import (
+    API_PROVIDER_AZURE,
+    CONF_PAYLOAD_TEMPLATE,
+    DOMAIN,
+    EVENT_AUTOMATION_REGISTERED,
+)
 from .exceptions import (
     CallServiceError,
     EntityNotExposed,
@@ -75,6 +80,28 @@ def is_azure_url(base_url: str | None) -> bool:
     if base_url and re.search(AZURE_DOMAIN_PATTERN, base_url):
         return True
     return False
+
+
+def build_custom_headers(custom_headers: Any) -> dict[str, str] | None:
+    """Build a mapping of custom HTTP headers.
+
+    Accepts either a mapping or a YAML/JSON string representing a mapping.
+    """
+    if not custom_headers:
+        return None
+
+    if isinstance(custom_headers, str):
+        try:
+            custom_headers = yaml.safe_load(custom_headers)
+        except yaml.YAMLError as err:
+            raise HomeAssistantError(f"Invalid custom headers: {err}") from err
+
+    if not isinstance(custom_headers, dict):
+        raise HomeAssistantError(
+            "Custom headers must be a mapping of header names to values."
+        )
+
+    return {str(key): str(value) for key, value in custom_headers.items()}
 
 
 def convert_to_template(
@@ -136,17 +163,21 @@ async def get_authenticated_client(
     api_version: str | None,
     organization: str | None,
     api_provider: str | None,
+    custom_headers: dict[str, str] | str | None = None,
     skip_authentication=False,
 ) -> AsyncClient:
     """Validate OpenAI authentication."""
 
-    if base_url and (is_azure_url(base_url) or api_provider == "azure"):
+    default_headers = build_custom_headers(custom_headers)
+
+    if base_url and (is_azure_url(base_url) or api_provider == API_PROVIDER_AZURE):
         client = AsyncAzureOpenAI(
             api_key=api_key,
             azure_endpoint=base_url,
             api_version=api_version,
             organization=organization,
             http_client=get_async_client(hass),
+            default_headers=default_headers,
         )
     else:
         client = AsyncOpenAI(
@@ -154,6 +185,7 @@ async def get_authenticated_client(
             base_url=base_url,
             organization=organization,
             http_client=get_async_client(hass),
+            default_headers=default_headers,
         )
 
     if skip_authentication:
@@ -460,9 +492,9 @@ class ScriptFunctionExecutor(FunctionExecutor):
         script = Script(
             hass,
             function["sequence"],
-            "extended_openai_conversation",
             DOMAIN,
-            running_description="[extended_openai_conversation] function",
+            DOMAIN,
+            running_description=f"[{DOMAIN}] function",
             logger=_LOGGER,
         )
 

@@ -14,7 +14,11 @@
                     "api_version": "Api Version",
                     "organization": "Organization",
                     "skip_authentication": "Skip Authentication",
-                    "api_provider": "Api Provider"
+                    "api_provider": "Api Provider",
+                    "custom_headers": "Custom HTTP Headers"
+                },
+                "data_description": {
+                    "custom_headers": "Additional HTTP headers sent with every request, as a mapping of header names to values."
                 }
             }
         }
@@ -108,7 +112,11 @@
                 },
                 "api_provider": {
                     "name": "Api Provider",
-                    "description": "The API provider. (OpenAI or Azure)"
+                    "description": "The API provider. (OpenAI, Azure or OpenAI Compatible)"
+                },
+                "custom_headers": {
+                    "name": "Custom HTTP Headers",
+                    "description": "Additional HTTP headers sent with every request, as a mapping of header names to values."
                 }
             }
         }

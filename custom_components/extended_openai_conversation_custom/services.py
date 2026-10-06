@@ -24,9 +24,11 @@ from homeassistant.helpers import config_validation as cv, selector
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    API_PROVIDERS_REQUIRING_BASE_URL,
     CONF_API_PROVIDER,
     CONF_API_VERSION,
     CONF_BASE_URL,
+    CONF_CUSTOM_HEADERS,
     CONF_ORGANIZATION,
     CONF_SKIP_AUTHENTICATION,
     DEFAULT_CONF_BASE_URL,
@@ -60,6 +62,7 @@ CHANGE_CONFIG_SCHEMA = vol.Schema(
         vol.Optional(CONF_BASE_URL): cv.string,
         vol.Optional(CONF_API_VERSION): cv.string,
         vol.Optional(CONF_ORGANIZATION): cv.string,
+        vol.Optional(CONF_CUSTOM_HEADERS): vol.Any(cv.string, dict),
         vol.Optional(CONF_SKIP_AUTHENTICATION): cv.boolean,
         vol.Optional(CONF_API_PROVIDER): cv.string,
     }
@@ -132,6 +135,7 @@ async def async_setup_services(hass: HomeAssistant, config: ConfigType) -> None:
             CONF_BASE_URL,
             CONF_API_VERSION,
             CONF_ORGANIZATION,
+            CONF_CUSTOM_HEADERS,
             CONF_SKIP_AUTHENTICATION,
             CONF_API_PROVIDER,
         ]:
@@ -152,8 +156,13 @@ async def async_setup_services(hass: HomeAssistant, config: ConfigType) -> None:
             base_url = None
             new_data.pop(CONF_BASE_URL)
 
-        if new_data.get(CONF_API_PROVIDER) == "azure" and not base_url:
-            raise HomeAssistantError("Azure OpenAI requires a custom base URL.")
+        if (
+            new_data.get(CONF_API_PROVIDER) in API_PROVIDERS_REQUIRING_BASE_URL
+            and not base_url
+        ):
+            raise HomeAssistantError(
+                f"{new_data.get(CONF_API_PROVIDER)} requires a custom base URL."
+            )
 
         await get_authenticated_client(
             hass=hass,
@@ -163,6 +172,7 @@ async def async_setup_services(hass: HomeAssistant, config: ConfigType) -> None:
             organization=new_data.get(CONF_ORGANIZATION),
             skip_authentication=new_data.get(CONF_SKIP_AUTHENTICATION, False),
             api_provider=new_data.get(CONF_API_PROVIDER),
+            custom_headers=new_data.get(CONF_CUSTOM_HEADERS),
         )
 
         hass.config_entries.async_update_entry(entry, data=new_data)

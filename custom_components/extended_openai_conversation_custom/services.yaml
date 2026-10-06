@@ -4,7 +4,7 @@ query_image:
       required: true
       selector:
         config_entry:
-          integration: extended_openai_conversation
+          integration: extended_openai_conversation_custom
     model:
       example: gpt-4.1-mini
       selector:
@@ -34,7 +34,7 @@ change_config:
       required: true
       selector:
         config_entry:
-          integration: extended_openai_conversation
+          integration: extended_openai_conversation_custom
     api_key:
       selector:
         text:
@@ -49,6 +49,10 @@ change_config:
     organization:
       selector:
         text:
+    custom_headers:
+      example: '{"X-Custom-Header": "value", "X-Another": "another"}'
+      selector:
+        object:
     skip_authentication:
       selector:
         boolean:
@@ -59,4 +63,5 @@ change_config:
           options:
             - openai
             - azure
+            - openai_compatible
           mode: dropdown

@@ -9,7 +9,11 @@
           "api_version": "[%key:common::config_flow::data::api_version%]",
           "organization": "[%key:common::config_flow::data::organization%]",
           "skip_authentication": "[%key:common::config_flow::data::skip_authentication%]",
-          "api_provider": "[%key:common::config_flow::data::api_provider%]"
+          "api_provider": "[%key:common::config_flow::data::api_provider%]",
+          "custom_headers": "Custom HTTP Headers"
+        },
+        "data_description": {
+          "custom_headers": "Additional HTTP headers sent with every request, as a mapping of header names to values."
         }
       }
     },
@@ -101,7 +105,11 @@
         },
         "api_provider": {
           "name": "API Provider",
-          "description": "The API provider. (OpenAI or Azure)"
+          "description": "The API provider. (OpenAI, Azure or OpenAI Compatible)"
+        },
+        "custom_headers": {
+          "name": "Custom HTTP Headers",
+          "description": "Additional HTTP headers sent with every request, as a mapping of header names to values."
         }
       }
     }
